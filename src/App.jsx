@@ -456,7 +456,7 @@ function App() {
               />
 
               <p className="time-display">
-                <span className="sr-only">Video progress</span>
+                <span className="sr-only">Video time</span>
                 {formatTime(currentTime)} / {formatTime(duration)}
               </p>
             </div>
