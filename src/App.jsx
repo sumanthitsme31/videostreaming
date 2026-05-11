@@ -3,9 +3,11 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
+import { getManifestUrlError, masterManifestUrl } from './config/appConfig'
 
 function App() {
   const [count, setCount] = useState(0)
+  const manifestUrlError = getManifestUrlError()
 
   return (
     <>
@@ -20,6 +22,15 @@ function App() {
           <p>
             Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
           </p>
+          {manifestUrlError ? (
+            <p role="alert">{manifestUrlError}</p>
+          ) : (
+            <p>
+              Master manifest URL configured:
+              <br />
+              <code>{masterManifestUrl}</code>
+            </p>
+          )}
         </div>
         <button
           type="button"

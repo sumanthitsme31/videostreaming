@@ -1,16 +1,76 @@
-# React + Vite
+# Video Streaming (Vite + React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Setup
 
-Currently, two official plugins are available:
+1. Install dependencies:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+```
 
-## React Compiler
+2. Copy env file and set your HLS master manifest URL:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+cp .env.example .env
+```
 
-## Expanding the ESLint configuration
+Required variable:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `VITE_MASTER_MANIFEST_URL` → public URL to your `master.m3u8`
+
+3. Start dev server:
+
+```bash
+npm run dev
+```
+
+4. Build production bundle:
+
+```bash
+npm run build
+```
+
+## Local FFmpeg workflow (run on your machine)
+
+Yes — transcoding should be run locally (or on your own server) where your source video exists.
+
+```bash
+# choose source and output dir
+SOURCE="input.mp4"
+OUTPUT_DIR="hls_output"
+mkdir -p "$OUTPUT_DIR"
+
+# 360p
+ffmpeg -i "$SOURCE" -vf "scale=w=640:h=360:force_original_aspect_ratio=decrease" -c:a aac -ar 48000 -c:v h264 -profile:v main -crf 23 -sc_threshold 0 -g 48 -keyint_min 48 -hls_time 4 -hls_playlist_type vod -b:v 800k -maxrate 856k -bufsize 1200k -b:a 96k -hls_segment_filename "$OUTPUT_DIR/360p_%03d.ts" "$OUTPUT_DIR/360p.m3u8"
+
+# 480p
+ffmpeg -i "$SOURCE" -vf "scale=w=842:h=480:force_original_aspect_ratio=decrease" -c:a aac -ar 48000 -c:v h264 -profile:v main -crf 23 -sc_threshold 0 -g 48 -keyint_min 48 -hls_time 4 -hls_playlist_type vod -b:v 1400k -maxrate 1498k -bufsize 2100k -b:a 128k -hls_segment_filename "$OUTPUT_DIR/480p_%03d.ts" "$OUTPUT_DIR/480p.m3u8"
+
+# 720p
+ffmpeg -i "$SOURCE" -vf "scale=w=1280:h=720:force_original_aspect_ratio=decrease" -c:a aac -ar 48000 -c:v h264 -profile:v main -crf 23 -sc_threshold 0 -g 48 -keyint_min 48 -hls_time 4 -hls_playlist_type vod -b:v 2800k -maxrate 2996k -bufsize 4200k -b:a 128k -hls_segment_filename "$OUTPUT_DIR/720p_%03d.ts" "$OUTPUT_DIR/720p.m3u8"
+
+# 1080p
+ffmpeg -i "$SOURCE" -vf "scale=w=1920:h=1080:force_original_aspect_ratio=decrease" -c:a aac -ar 48000 -c:v h264 -profile:v main -crf 23 -sc_threshold 0 -g 48 -keyint_min 48 -hls_time 4 -hls_playlist_type vod -b:v 5000k -maxrate 5350k -bufsize 7500k -b:a 192k -hls_segment_filename "$OUTPUT_DIR/1080p_%03d.ts" "$OUTPUT_DIR/1080p.m3u8"
+```
+
+Create `hls_output/master.m3u8`:
+
+```m3u8
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=896000,RESOLUTION=640x360
+360p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1528000,RESOLUTION=842x480
+480p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=3128000,RESOLUTION=1280x720
+720p.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=5542000,RESOLUTION=1920x1080
+1080p.m3u8
+```
+
+Verify files exist:
+
+```bash
+ls -1 "$OUTPUT_DIR"/*.m3u8
+ls -1 "$OUTPUT_DIR"/*.ts | head
+```
