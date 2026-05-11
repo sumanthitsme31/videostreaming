@@ -455,7 +455,8 @@ function App() {
                 style={{ '--range-progress': `${(isMuted ? 0 : volume) * 100}%` }}
               />
 
-              <p className="time-display" aria-label="Video progress">
+              <p className="time-display">
+                <span className="sr-only">Video progress </span>
                 {formatTime(currentTime)} / {formatTime(duration)}
               </p>
             </div>
