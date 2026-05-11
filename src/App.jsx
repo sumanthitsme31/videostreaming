@@ -35,6 +35,7 @@ function App() {
   const [currentBitrate, setCurrentBitrate] = useState('N/A')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [hlsSupported, setHlsSupported] = useState(true)
+  const [hlsError, setHlsError] = useState('')
 
   const speedOptions = useMemo(() => [0.5, 1, 1.25, 1.5, 2], [])
 
@@ -42,7 +43,7 @@ function App() {
     const video = videoRef.current
     if (!video) return undefined
 
-    const savedProgress = Number.parseFloat(localStorage.getItem(STORAGE_PROGRESS_KEY) || '')
+    const savedProgress = Number.parseFloat(localStorage.getItem(STORAGE_PROGRESS_KEY) || '0')
 
     const onLoadedMetadata = () => {
       if (Number.isFinite(savedProgress) && savedProgress > 0 && savedProgress < video.duration) {
@@ -108,14 +109,22 @@ function App() {
         ]
         setQualityOptions(options)
 
-        if (hls.levels[0]?.bitrate) {
-          setCurrentBitrate(formatBitrate(hls.levels[0].bitrate))
+        const initialLevelIndex =
+          hls.currentLevel >= 0 ? hls.currentLevel : hls.loadLevel >= 0 ? hls.loadLevel : -1
+        if (initialLevelIndex >= 0 && hls.levels[initialLevelIndex]?.bitrate) {
+          setCurrentBitrate(formatBitrate(hls.levels[initialLevelIndex].bitrate))
         }
       })
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
         const currentLevel = hls.levels[data.level]
         setCurrentBitrate(formatBitrate(currentLevel?.bitrate))
+      })
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          setHlsError('Unable to load or play the HLS stream. Please verify the manifest URL.')
+        }
       })
 
       return () => {
@@ -146,54 +155,48 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      const video = videoRef.current
-      if (!video) return
+  const handlePlayerKeyDown = (event) => {
+    const video = videoRef.current
+    if (!video) return
 
-      if (event.code === 'Space') {
-        event.preventDefault()
-        if (video.paused) {
-          void video.play()
-        } else {
-          video.pause()
-        }
-      }
-
-      if (event.key.toLowerCase() === 'm') {
-        event.preventDefault()
-        video.muted = !video.muted
-      }
-
-      if (event.code === 'ArrowRight') {
-        event.preventDefault()
-        video.currentTime = Math.min(video.currentTime + SEEK_SECONDS, video.duration || Number.MAX_SAFE_INTEGER)
-      }
-
-      if (event.code === 'ArrowLeft') {
-        event.preventDefault()
-        video.currentTime = Math.max(video.currentTime - SEEK_SECONDS, 0)
-      }
-
-      if (event.key.toLowerCase() === 'f') {
-        event.preventDefault()
-        const container = containerRef.current
-        if (!container) return
-
-        if (!document.fullscreenElement) {
-          void container.requestFullscreen()
-        } else {
-          void document.exitFullscreen()
-        }
+    if (event.code === 'Space') {
+      event.preventDefault()
+      if (video.paused) {
+        void video.play()
+      } else {
+        video.pause()
       }
     }
 
-    document.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
+    if (event.key.toLowerCase() === 'm') {
+      event.preventDefault()
+      video.muted = !video.muted
     }
-  }, [])
+
+    if (event.code === 'ArrowRight') {
+      event.preventDefault()
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return
+      video.currentTime = Math.min(video.currentTime + SEEK_SECONDS, video.duration)
+    }
+
+    if (event.code === 'ArrowLeft') {
+      event.preventDefault()
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return
+      video.currentTime = Math.max(video.currentTime - SEEK_SECONDS, 0)
+    }
+
+    if (event.key.toLowerCase() === 'f') {
+      event.preventDefault()
+      const container = containerRef.current
+      if (!container) return
+
+      if (!document.fullscreenElement) {
+        void container.requestFullscreen()
+      } else {
+        void document.exitFullscreen()
+      }
+    }
+  }
 
   const togglePlayPause = () => {
     const video = videoRef.current
@@ -253,6 +256,11 @@ function App() {
 
     hls.currentLevel = nextLevel
 
+    if (nextLevel === -1) {
+      setCurrentBitrate('N/A')
+      return
+    }
+
     if (nextLevel >= 0 && hls.levels[nextLevel]?.bitrate) {
       setCurrentBitrate(formatBitrate(hls.levels[nextLevel].bitrate))
     }
@@ -279,8 +287,15 @@ function App() {
       {!hlsSupported ? (
         <p role="alert">This browser does not support HLS playback.</p>
       ) : null}
+      {hlsError ? <p role="alert">{hlsError}</p> : null}
 
-      <section className="player-shell" ref={containerRef} tabIndex={0} aria-label="Custom video player">
+      <section
+        className="player-shell"
+        ref={containerRef}
+        tabIndex={0}
+        aria-label="Custom video player"
+        onKeyDown={handlePlayerKeyDown}
+      >
         <video ref={videoRef} className="video" controls={false} playsInline />
 
         <div className="controls">
