@@ -1,4 +1,6 @@
 body {
+  --yt-accent: #ff355d;
+  --yt-accent-glow: rgba(255, 53, 93, 0.22);
   background:
     radial-gradient(circle at top, rgba(255, 0, 0, 0.12), transparent 28%),
     linear-gradient(180deg, #101010 0%, #0f0f0f 100%);
@@ -23,7 +25,7 @@ body {
 
 .eyebrow {
   margin: 0 0 0.4rem;
-  color: #ff4e45;
+  color: var(--yt-accent);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -67,7 +69,7 @@ h1 {
 }
 
 .player-shell:focus-visible {
-  outline: 2px solid #ff4e45;
+  outline: 2px solid var(--yt-accent);
   outline-offset: 4px;
 }
 
@@ -128,7 +130,11 @@ h1 {
 .volume-slider::-webkit-slider-runnable-track {
   height: 0.35rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ff0033 var(--range-progress), rgba(255, 255, 255, 0.28) var(--range-progress));
+  background: linear-gradient(
+    90deg,
+    var(--yt-accent) var(--range-progress),
+    rgba(255, 255, 255, 0.28) var(--range-progress)
+  );
 }
 
 .progress-bar::-moz-range-track,
@@ -142,7 +148,7 @@ h1 {
 .volume-slider::-moz-range-progress {
   height: 0.35rem;
   border-radius: 999px;
-  background: #ff0033;
+  background: var(--yt-accent);
 }
 
 .progress-bar::-webkit-slider-thumb,
@@ -153,8 +159,8 @@ h1 {
   margin-top: -0.275rem;
   border: none;
   border-radius: 50%;
-  background: #ff0033;
-  box-shadow: 0 0 0 4px rgba(255, 0, 51, 0.18);
+  background: var(--yt-accent);
+  box-shadow: 0 0 0 4px var(--yt-accent-glow);
 }
 
 .progress-bar::-moz-range-thumb,
@@ -163,8 +169,8 @@ h1 {
   height: 0.9rem;
   border: none;
   border-radius: 50%;
-  background: #ff0033;
-  box-shadow: 0 0 0 4px rgba(255, 0, 51, 0.18);
+  background: var(--yt-accent);
+  box-shadow: 0 0 0 4px var(--yt-accent-glow);
 }
 
 .control-row {
