@@ -13,11 +13,94 @@ const formatBitrate = (bitrate) => {
   return `${(bitrate / 1000000).toFixed(2)} Mbps`
 }
 
+const formatTime = (timeInSeconds) => {
+  if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0) return '0:00'
+
+  const totalSeconds = Math.floor(timeInSeconds)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
 const getLevelLabel = (level, index) => {
   if (level.height) return `${level.height}p`
   if (level.bitrate) return `${Math.round(level.bitrate / 1000)} kbps`
   return `Level ${index + 1}`
 }
+
+const Icon = ({ children }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="player-icon">
+    {children}
+  </svg>
+)
+
+const PlayIcon = () => (
+  <Icon>
+    <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18a1 1 0 0 0 0-1.68L9.54 5.98A1 1 0 0 0 8 6.82Z" />
+  </Icon>
+)
+
+const PauseIcon = () => (
+  <Icon>
+    <rect x="7" y="6" width="4" height="12" rx="1" />
+    <rect x="13" y="6" width="4" height="12" rx="1" />
+  </Icon>
+)
+
+const VolumeIcon = ({ muted, volume }) => {
+  if (muted || volume === 0) {
+    return (
+      <Icon>
+        <path d="M5 9h3.3l4.34-3.47A1 1 0 0 1 14 6.3V17.7a1 1 0 0 1-1.36.77L8.3 15H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z" />
+        <path d="m17 9 4 6" />
+        <path d="m21 9-4 6" />
+      </Icon>
+    )
+  }
+
+  if (volume < 0.5) {
+    return (
+      <Icon>
+        <path d="M5 9h3.3l4.34-3.47A1 1 0 0 1 14 6.3V17.7a1 1 0 0 1-1.36.77L8.3 15H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z" />
+        <path d="M18.5 8.5a5 5 0 0 1 0 7" />
+      </Icon>
+    )
+  }
+
+  return (
+    <Icon>
+      <path d="M5 9h3.3l4.34-3.47A1 1 0 0 1 14 6.3V17.7a1 1 0 0 1-1.36.77L8.3 15H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1Z" />
+      <path d="M17.5 8a6 6 0 0 1 0 8" />
+      <path d="M20 5.5a9.5 9.5 0 0 1 0 13" />
+    </Icon>
+  )
+}
+
+const FullscreenIcon = ({ isFullscreen }) => (
+  <Icon>
+    {isFullscreen ? (
+      <>
+        <path d="M8 4H4v4" />
+        <path d="M16 4h4v4" />
+        <path d="M4 16v4h4" />
+        <path d="M20 16v4h-4" />
+      </>
+    ) : (
+      <>
+        <path d="M9 4H4v5" />
+        <path d="M15 4h5v5" />
+        <path d="M4 15v5h5" />
+        <path d="M20 15v5h-5" />
+      </>
+    )}
+  </Icon>
+)
 
 function App() {
   const videoRef = useRef(null)
@@ -36,6 +119,8 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [hlsSupported, setHlsSupported] = useState(true)
   const [hlsError, setHlsError] = useState('')
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
 
   const speedOptions = useMemo(() => [0.5, 1, 1.25, 1.5, 2], [])
 
@@ -46,8 +131,12 @@ function App() {
     const savedProgress = Number.parseFloat(localStorage.getItem(STORAGE_PROGRESS_KEY) || '0')
 
     const onLoadedMetadata = () => {
+      setDuration(video.duration)
+
       if (Number.isFinite(savedProgress) && savedProgress > 0 && savedProgress < video.duration) {
         video.currentTime = savedProgress
+        setCurrentTime(savedProgress)
+        setProgress((savedProgress / video.duration) * 100)
       }
     }
 
@@ -55,6 +144,7 @@ function App() {
       if (!video.duration) return
 
       const currentProgress = (video.currentTime / video.duration) * 100
+      setCurrentTime(video.currentTime)
       setProgress(currentProgress)
 
       if (video.currentTime - lastSavedProgressRef.current >= SAVE_PROGRESS_INTERVAL_SECONDS) {
@@ -215,6 +305,7 @@ function App() {
 
     const nextProgress = Number(event.target.value)
     video.currentTime = (nextProgress / 100) * video.duration
+    setCurrentTime(video.currentTime)
     setProgress(nextProgress)
   }
 
@@ -279,15 +370,30 @@ function App() {
 
   return (
     <main className="app">
-      <h1>Video Streaming Platform</h1>
-      <p className="manifest-url">
-        Manifest URL: <code>{masterManifestUrl}</code>
-      </p>
+      <header className="app-header">
+        <div>
+          <p className="eyebrow">YouTube-inspired player</p>
+          <h1>Video Streaming Platform</h1>
+          <p className="supporting-text">
+            Modern overlay controls, responsive dark styling, and the same custom playback
+            behavior.
+          </p>
+        </div>
+        <p className="manifest-url">
+          Manifest URL: <code>{masterManifestUrl}</code>
+        </p>
+      </header>
 
       {!hlsSupported ? (
-        <p role="alert">This browser does not support HLS playback.</p>
+        <p role="alert" className="status-message">
+          This browser does not support HLS playback.
+        </p>
       ) : null}
-      {hlsError ? <p role="alert">{hlsError}</p> : null}
+      {hlsError ? (
+        <p role="alert" className="status-message">
+          {hlsError}
+        </p>
+      ) : null}
 
       <section
         className="player-shell"
@@ -297,13 +403,13 @@ function App() {
         onKeyDown={handlePlayerKeyDown}
       >
         <video ref={videoRef} className="video" controls={false} playsInline />
+        <p className="bitrate-badge" data-testid="current-bitrate-display">
+          Current Bitrate: {currentBitrate}
+        </p>
 
-        <div className="controls">
-          <button data-testid="play-pause-button" type="button" onClick={togglePlayPause}>
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-
+        <div className="controls-overlay">
           <input
+            className="progress-bar"
             data-testid="progress-bar"
             type="range"
             min="0"
@@ -311,56 +417,95 @@ function App() {
             value={progress}
             onInput={onProgressInput}
             aria-label="Seek"
+            style={{ '--range-progress': `${progress}%` }}
           />
 
-          <input
-            data-testid="volume-slider"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            onInput={onVolumeInput}
-            aria-label="Volume"
-          />
+          <div className="control-row">
+            <div className="control-group">
+              <button
+                data-testid="play-pause-button"
+                type="button"
+                onClick={togglePlayPause}
+                className="icon-button"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <PauseIcon /> : <PlayIcon />}
+              </button>
 
-          <button data-testid="mute-button" type="button" onClick={toggleMute}>
-            {isMuted ? 'Unmute' : 'Mute'}
-          </button>
+              <button
+                data-testid="mute-button"
+                type="button"
+                onClick={toggleMute}
+                className="icon-button"
+                aria-label={isMuted ? 'Unmute' : 'Mute'}
+              >
+                <VolumeIcon muted={isMuted} volume={volume} />
+              </button>
 
-          <select
-            data-testid="quality-selector"
-            value={selectedQuality}
-            onChange={onQualityChange}
-            aria-label="Quality selector"
-          >
-            {qualityOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+              <input
+                className="volume-slider"
+                data-testid="volume-slider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onInput={onVolumeInput}
+                aria-label="Volume"
+                style={{ '--range-progress': `${(isMuted ? 0 : volume) * 100}%` }}
+              />
 
-          <select
-            data-testid="playback-speed-selector"
-            value={playbackSpeed}
-            onChange={onSpeedChange}
-            aria-label="Playback speed selector"
-          >
-            {speedOptions.map((speed) => (
-              <option key={speed} value={speed}>
-                {speed}x
-              </option>
-            ))}
-          </select>
+              <p className="time-display">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </p>
+            </div>
 
-          <button data-testid="fullscreen-button" type="button" onClick={toggleFullscreen}>
-            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-          </button>
+            <div className="control-group control-group-right">
+              <label className="select-wrapper">
+                <span className="select-label">Quality</span>
+                <select
+                  data-testid="quality-selector"
+                  value={selectedQuality}
+                  onChange={onQualityChange}
+                  aria-label="Quality selector"
+                >
+                  {qualityOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="select-wrapper">
+                <span className="select-label">Speed</span>
+                <select
+                  data-testid="playback-speed-selector"
+                  value={playbackSpeed}
+                  onChange={onSpeedChange}
+                  aria-label="Playback speed selector"
+                >
+                  {speedOptions.map((speed) => (
+                    <option key={speed} value={speed}>
+                      {speed}x
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                data-testid="fullscreen-button"
+                type="button"
+                onClick={toggleFullscreen}
+                className="icon-button"
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                <FullscreenIcon isFullscreen={isFullscreen} />
+              </button>
+            </div>
+          </div>
         </div>
       </section>
-
-      <p data-testid="current-bitrate-display">Current Bitrate: {currentBitrate}</p>
     </main>
   )
 }
